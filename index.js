@@ -204,7 +204,7 @@ app.get('/api/pets/:id', async (req, res) => {
 
 
 
-run().catch(console.dir);
+run().catch(console.dir)    ;
 
 app.get("/", (req, res) => {
   res.send("Pet Care server is running");
