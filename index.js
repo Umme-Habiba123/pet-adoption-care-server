@@ -55,7 +55,7 @@ async function run() {
     await client.connect();
     const db = client.db("petAdoptionCareDB");
     const petsCollection = db.collection("pets");
-
+     adoptionsCollection = db.collection('adoptions');
     console.log("✅ MongoDB connected");
 
     // POST: Submit pet for adoption
@@ -65,17 +65,20 @@ async function run() {
         const files = req.files;
 
         if (!files || files.length === 0) {
-          return res
-            .status(400)
-            .json({ success: false, message: "At least one image is required" });
+          return res.status(400).json({
+            success: false,
+            message: "At least one image is required",
+          });
         }
 
-        const imagePaths = files.map((file) => `/uploads/pets/${file.filename}`);
+        const imagePaths = files.map(
+          (file) => `/uploads/pets/${file.filename}`
+        );
 
         const newPet = {
           ...petData,
           images: imagePaths,
-          status: 'available', //change korbo "status: 'pending'", eta hobe
+          status: "available", //change korbo "status: 'pending'", eta hobe
           createdAt: new Date(),
           age: parseInt(petData.age) || 0,
           vaccinated:
@@ -146,6 +149,61 @@ async function run() {
     console.error("MongoDB connection error:", err);
   }
 }
+
+
+app.get('/', (req, res) => {
+  res.send('Pet Adoption Server Running');
+});
+
+// GET get all adoptions
+app.get('/api/adoptions', async (req, res) => {
+  try {
+    const adoptions = await adoptionsCollection.find().toArray();
+    res.status(200).json({ success: true, data: adoptions });
+  } catch (err) {
+    console.error('Error fetching adoptions:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// POST get new adoption
+app.post('/api/adoptions', async (req, res) => {
+  try {
+    const newAdoption = req.body;
+    console.log('Incoming adoption data:', newAdoption);
+
+    if (!adoptionsCollection) {
+      console.log('Adoptions collection not initialized');
+      return res.status(500).json({ success: false, message: 'DB not ready' });
+    }
+
+    const result = await adoptionsCollection.insertOne(newAdoption);
+    console.log('Adoption inserted with _id:', result.insertedId);
+
+    res.status(201).json({ success: true, data: result });
+  } catch (err) {
+    console.error('Error submitting adoption:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Optional: GET pet by ID
+app.get('/api/pets/:id', async (req, res) => {
+  try {
+    const petId = req.params.id;
+    const pet = await petsCollection.findOne({ _id: new ObjectId(petId) });
+    if (!pet) return res.status(404).json({ success: false, message: 'Pet not found' });
+    res.status(200).json({ success: true, data: pet });
+  } catch (err) {
+    console.error('Error fetching pet:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
+
+
+
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
