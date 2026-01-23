@@ -6,6 +6,8 @@ const dotenv = require("dotenv");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+module.exports = mongoose.model('Pet', petSchema);
+
 
 dotenv.config();
 const app = express();
@@ -56,6 +58,8 @@ async function run() {
     const db = client.db("petAdoptionCareDB");
     const petsCollection = db.collection("pets");
      adoptionsCollection = db.collection('adoptions');
+     const adoptionsCollection = db.collection("adoptions");
+
     console.log("✅ MongoDB connected");
 
     // POST: Submit pet for adoption
@@ -199,6 +203,121 @@ app.get('/api/pets/:id', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
+app.get('/', async (req, res) => {
+  try {
+    // আপনি চাইলে query parameters দিয়ে filter করতে পারেন
+    const { status, type, location } = req.query;
+    
+    let filter = {};
+    
+    // Default: শুধু available/approved pets দেখাবে
+    if (!status) {
+      filter = { 
+        $or: [
+          { status: 'available' },
+          { status: 'approved' }
+        ]
+      };
+    } else {
+      filter.status = status;
+    }
+    
+    if (type) filter.petType = type;
+    if (location) filter.location = { $regex: location, $options: 'i' };
+    
+    const pets = await Pet.find(filter)
+      .sort({ createdAt: -1 }) // নতুন গুলো আগে
+      .limit(50); // Limit করে নিন
+    
+    res.json(pets);
+  } catch (error) {
+    console.error('Error fetching pets:', error);
+    res.status(500).json({ 
+      message: 'Error fetching pets',
+      error: error.message 
+    });
+  }
+});
+
+// Get pet by ID
+app.get('/:id', async (req, res) => {
+  try {
+    const pet = await Pet.findById(req.params.id);
+    if (!pet) {
+      return res.status(404).json({ message: 'Pet not found' });
+    }
+    res.json(pet);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+app.post("/api/adoptions", async (req, res) => {
+  try {
+    const adoptionData = req.body;
+
+    adoptionData.status = "pending";
+    adoptionData.createdAt = new Date();
+
+    const result = await adoptionsCollection.insertOne(adoptionData);
+
+    res.send({
+      success: true,
+      message: "Adoption application submitted successfully",
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: "Failed to submit adoption application",
+      error: error.message,
+    });
+  }
+});
+
+
+// models/Pet.js
+const petSchema = new mongoose.Schema({
+  petType: String,
+  breed: String,
+  name: String,
+  age: Number,
+  gender: String,
+  size: String,
+  color: String,
+  description: String,
+
+  healthStatus: String,
+  vaccinated: Boolean,
+  neutered: Boolean,
+
+  location: String,
+  contactName: String,
+  contactPhone: String,
+  contactEmail: String,
+  reasonForAdoption: String,
+
+  images: [String], // image URLs
+  status: {
+    type: String,
+    default: 'pending' // pending | approved | rejected
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+// routes/pets.js
+app.get('/pets/approved', async (req, res) => {
+  const pets = await Pet.find({ status: 'approved' }).sort({ createdAt: -1 });
+  res.send(pets);
+});
+
+
+
+
+
 
 
 
