@@ -59,11 +59,6 @@ async function run() {
   }
 }
 
-// Routes
-
-// Home
-app.get("/", (req, res) => res.send("Pet Care server is running"));
-
 // POST: Submit pet for adoption
 app.post("/api/pets", upload.array("images", 5), async (req, res) => {
   try {
@@ -139,16 +134,19 @@ app.patch("/api/pets/:id/status", async (req, res) => {
   }
 });
 
-// GET: all adoptions
-app.get("/api/adoptions", async (req, res) => {
+app.get("/api/adoption-pets", async (req, res) => {
   try {
-    const adoptions = await adoptionsCollection.find().toArray();
-    res.status(200).json({ success: true, data: adoptions });
+    const status = req.query.status || "available";
+    const pets = await petsCollection.find({ status }).toArray();
+    res.json(pets);
   } catch (err) {
-    console.error("Error fetching adoptions:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Error fetching adoption pets:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 });
+
+
+
 
 // POST: submit new adoption
 app.post("/api/adoptions", async (req, res) => {
